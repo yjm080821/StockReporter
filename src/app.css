@@ -272,14 +272,136 @@ select:focus {
   font-weight: 800;
 }
 
+.report-header span.streaming {
+  border-color: rgba(22, 143, 122, 0.35);
+  color: #0f6f60;
+  background: rgba(22, 143, 122, 0.1);
+}
+
 .report-content {
   padding-top: 20px;
   color: #27343b;
   line-height: 1.75;
 }
 
+.report-content h1,
+.report-content h2,
+.report-content h3 {
+  margin: 28px 0 12px;
+  color: var(--ink);
+  line-height: 1.25;
+  letter-spacing: 0;
+}
+
+.report-content h1:first-child,
+.report-content h2:first-child,
+.report-content h3:first-child {
+  margin-top: 0;
+}
+
+.report-content h1 {
+  font-size: 1.55rem;
+}
+
+.report-content h2 {
+  font-size: 1.28rem;
+}
+
+.report-content h3 {
+  font-size: 1.08rem;
+}
+
 .report-content p {
   margin: 0 0 10px;
+}
+
+.report-content ul,
+.report-content ol {
+  margin: 0 0 16px;
+  padding-left: 24px;
+}
+
+.report-content li {
+  margin: 5px 0;
+}
+
+.report-content strong {
+  color: var(--ink);
+}
+
+.report-content blockquote {
+  margin: 18px 0;
+  border-left: 4px solid rgba(35, 100, 170, 0.3);
+  border-radius: 0 8px 8px 0;
+  background: rgba(35, 100, 170, 0.07);
+  padding: 12px 16px;
+  color: #43535d;
+}
+
+.report-content code {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: #f3f6f5;
+  padding: 2px 6px;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  font-size: 0.9em;
+}
+
+.report-content pre {
+  overflow-x: auto;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #f3f6f5;
+  padding: 14px;
+}
+
+.report-content pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+}
+
+.report-content table {
+  width: 100%;
+  margin: 18px 0;
+  border-collapse: collapse;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  font-size: 0.94rem;
+}
+
+.report-content th,
+.report-content td {
+  border-bottom: 1px solid var(--line);
+  padding: 10px 12px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.report-content th {
+  background: #f3f6f5;
+  color: var(--ink);
+}
+
+.report-content tr:last-child td {
+  border-bottom: 0;
+}
+
+.stream-cursor {
+  display: inline-block;
+  width: 8px;
+  height: 1.15em;
+  margin-left: 4px;
+  background: var(--teal);
+  vertical-align: -0.18em;
+  animation: blink 1s steps(2, start) infinite;
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0;
+  }
 }
 
 .empty-state {
@@ -353,4 +475,3 @@ select:focus {
     max-width: 100%;
   }
 }
-

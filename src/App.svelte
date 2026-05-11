@@ -1,4 +1,7 @@
 <script>
+  import DOMPurify from 'dompurify';
+  import { marked } from 'marked';
+
   const STORAGE_KEY = 'stock-reporter-ai-config';
 
   const defaultConfig = {
@@ -23,6 +26,7 @@
   let report = '';
 
   $: canGenerate = config.baseUrl.trim() && config.model && ticker.trim() && !isGenerating;
+  $: renderedReport = renderMarkdown(report);
 
   function loadConfig() {
     try {
@@ -120,8 +124,103 @@
       '4. 확인해야 할 지표',
       '5. 투자 관점별 시나리오',
       '',
+      '제목, 목록, 표, 굵은 글씨를 적절히 사용해 읽기 좋은 Markdown 형식으로 작성하세요.',
       '실시간 시세나 최신 재무 데이터가 서버 프롬프트에 제공되지 않았다면, 확정적인 최신 수치 대신 확인이 필요한 항목을 명확히 구분하세요. 투자 조언이 아니라 참고 리서치임을 유지하세요.'
     ].join('\n');
+  }
+
+  function renderMarkdown(value) {
+    if (!value.trim()) return '';
+
+    return DOMPurify.sanitize(
+      marked.parse(value, {
+        async: false,
+        breaks: true,
+        gfm: true
+      })
+    );
+  }
+
+  function extractCompleteText(payload) {
+    return (
+      payload.choices?.[0]?.message?.content ||
+      payload.choices?.[0]?.text ||
+      payload.output_text ||
+      payload.content ||
+      ''
+    );
+  }
+
+  function extractStreamDelta(payload) {
+    return (
+      payload.choices?.[0]?.delta?.content ||
+      payload.choices?.[0]?.text ||
+      payload.delta?.content ||
+      payload.message?.content ||
+      payload.output_text ||
+      ''
+    );
+  }
+
+  function consumeStreamEvent(rawEvent) {
+    const data = rawEvent
+      .split('\n')
+      .filter((line) => line.startsWith('data:'))
+      .map((line) => line.slice(5).trimStart())
+      .join('\n');
+
+    if (!data || data === '[DONE]') {
+      return data === '[DONE]';
+    }
+
+    try {
+      const payload = JSON.parse(data);
+      report += extractStreamDelta(payload);
+    } catch {
+      report += data;
+    }
+
+    return false;
+  }
+
+  async function readStream(response) {
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      buffer += decoder.decode(value, { stream: true });
+      buffer = buffer.replace(/\r\n/g, '\n');
+
+      let boundary = buffer.indexOf('\n\n');
+      while (boundary !== -1) {
+        const event = buffer.slice(0, boundary).trim();
+        buffer = buffer.slice(boundary + 2);
+
+        if (event && consumeStreamEvent(event)) {
+          await reader.cancel();
+          return;
+        }
+
+        boundary = buffer.indexOf('\n\n');
+      }
+    }
+
+    buffer += decoder.decode();
+    const tail = buffer.trim();
+
+    if (tail) {
+      if (tail.startsWith('{')) {
+        const payload = JSON.parse(tail);
+        report += extractCompleteText(payload);
+      } else {
+        consumeStreamEvent(tail);
+      }
+    }
   }
 
   async function generateReport() {
@@ -147,7 +246,8 @@
               content: buildPrompt()
             }
           ],
-          temperature: 0.35
+          temperature: 0.35,
+          stream: true
         })
       });
 
@@ -155,10 +255,18 @@
         throw new Error(`리포트 생성 실패: HTTP ${response.status}`);
       }
 
-      const payload = await response.json();
-      report = payload.choices?.[0]?.message?.content || payload.output_text || payload.content || '';
+      const contentType = response.headers.get('content-type') || '';
 
-      if (!report) {
+      if (contentType.includes('application/json')) {
+        const payload = await response.json();
+        report = extractCompleteText(payload);
+      } else if (!response.body) {
+        throw new Error('스트리밍 응답 본문을 읽을 수 없습니다.');
+      } else {
+        await readStream(response);
+      }
+
+      if (!report.trim()) {
         throw new Error('서버 응답에서 리포트 내용을 찾지 못했습니다.');
       }
 
@@ -312,7 +420,7 @@
         </label>
 
         <button class="primary-button" type="button" on:click={generateReport} disabled={!canGenerate}>
-          {isGenerating ? '리포트 생성 중' : '리포트 생성'}
+          {isGenerating ? '스트리밍 중' : '리포트 생성'}
         </button>
 
         {#if errorMessage}
@@ -326,18 +434,15 @@
             <p class="eyebrow">Generated Report</p>
             <h2>{ticker.trim() ? ticker.trim().toUpperCase() : '종목'} 분석</h2>
           </div>
-          <span>{config.model || '모델 미선택'}</span>
+          <span class:streaming={isGenerating}>{isGenerating ? '스트리밍 중' : config.model || '모델 미선택'}</span>
         </div>
 
         {#if report}
           <article class="report-content">
-            {#each report.split('\n') as line}
-              {#if line.trim()}
-                <p>{line}</p>
-              {:else}
-                <br />
-              {/if}
-            {/each}
+            {@html renderedReport}
+            {#if isGenerating}
+              <span class="stream-cursor" aria-label="스트리밍 중"></span>
+            {/if}
           </article>
         {:else}
           <div class="empty-state">
@@ -349,4 +454,3 @@
     </div>
   </section>
 </main>
-

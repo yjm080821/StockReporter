@@ -9,6 +9,8 @@ StockReporter is a Svelte-based web application powered by a user-provided AI AP
 - Connect to a user-provided AI API server.
 - Load available model names from the server.
 - Select any returned model before generating a report.
+- Stream generated stock reports as they are written.
+- Render report output as Markdown, including headings, lists, tables, quotes, and code blocks.
 - Generate structured stock reports with ticker, market, investment horizon, risk profile, and language options.
 - Save API server settings locally in the browser for repeat use.
 
